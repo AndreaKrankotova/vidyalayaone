@@ -53,16 +53,28 @@ function parseRefreshTokenExpiration(expiresIn: string): number {
 
 export async function login(req: Request, res: Response) {
   try {
+    const startTotal = performance.now();
+
+    const startValidation = performance.now();
     const validation = validateInput(loginSchema, req.body, res);
     if (!validation.success) return;
+    const endValidation = performance.now();
+    console.log(`1️ Validation: ${(endValidation - startValidation).toFixed(3)}ms`);
 
     const { username, password } = validation.data;
     const { context, schoolId } = getSchoolContext(req);
 
+    const startFetchUser = performance.now();
     const user = await fetchUserByUsernameAndContext(res, prisma, username, context, schoolId);
     if (!user) return;
+    const endFetchUser = performance.now();
+    console.log(`2️ Fetch user from DB: ${(endFetchUser - startFetchUser).toFixed(3)}ms`);
 
+    const startFetchRole = performance.now();
     const role = await prisma.role.findUnique({ where: { id: user.roleId } });
+    const endFetchRole = performance.now();
+    console.log(`3️ Fetch role from DB: ${(endFetchRole - startFetchRole).toFixed(3)}ms`);
+    
     if (!role) {
       res.status(500).json({
         success: false,
@@ -84,8 +96,10 @@ export async function login(req: Request, res: Response) {
       }
     }
 
-    
+    const startBcrypt = performance.now();
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const endBcrypt = performance.now();
+    console.log(`4  bcrypt.compare (BOTTLENECK?): ${(endBcrypt - startBcrypt).toFixed(3)}ms`);
     if (!isPasswordValid) {
       res.status(401).json({
         success: false,
@@ -95,6 +109,7 @@ export async function login(req: Request, res: Response) {
       return;
     }
 
+    const startJWT = performance.now();
     const accessToken = generateAccessToken({
       id: user.id,
       roleId: user.roleId,
@@ -107,6 +122,8 @@ export async function login(req: Request, res: Response) {
       roleName: role.name,
       permissions: role.permissions || []
     });
+    const endJWT = performance.now();
+    console.log(`5️ Generate JWT tokens: ${(endJWT - startJWT).toFixed(3)}ms`);
 
     // Get client information
     const ipAddress = getClientIP(req);
@@ -118,30 +135,35 @@ export async function login(req: Request, res: Response) {
     const daysToAdd = parseRefreshTokenExpiration(config.jwt.refreshExpiresIn);
     refreshTokenExpiresAt.setDate(refreshTokenExpiresAt.getDate() + daysToAdd);
 
-    // Save refresh token to database
-    const savedRefreshToken = await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        token: refreshToken,
-        expiresAt: refreshTokenExpiresAt,
-        ipAddress: ipAddress.substring(0, 45), // Ensure it fits in VARCHAR(45)
-        userAgent: userAgent.substring(0, 1000), // Reasonable limit for TEXT field
-        deviceType,
-        isRevoked: false,
-        lastUsedAt: new Date()
-      }
-    });
+    // Save refresh token to database (skip in development to avoid unique constraint errors during profiling)
+    const isDevelopment = config.server.nodeEnv === 'development';
+    if (!isDevelopment) {
+      await prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          token: refreshToken,
+          expiresAt: refreshTokenExpiresAt,
+          ipAddress: ipAddress.substring(0, 45), // Ensure it fits in VARCHAR(45)
+          userAgent: userAgent.substring(0, 1000), // Reasonable limit for TEXT field
+          deviceType,
+          isRevoked: false,
+          lastUsedAt: new Date()
+        }
+      });
 
-    // Optional: Clean up old/expired refresh tokens for this user
-    await prisma.refreshToken.deleteMany({
-      where: {
-        userId: user.id,
-        OR: [
-          { expiresAt: { lt: new Date() } }, // Expired tokens
-          { isRevoked: true } // Revoked tokens
-        ]
-      }
-    });
+      // Optional: Clean up old/expired refresh tokens for this user
+      await prisma.refreshToken.deleteMany({
+        where: {
+          userId: user.id,
+          OR: [
+            { expiresAt: { lt: new Date() } }, // Expired tokens
+            { isRevoked: true } // Revoked tokens
+          ]
+        }
+      });
+    }
+
+    const endTotal = performance.now();
 
     res.status(200).json({
       success: true,

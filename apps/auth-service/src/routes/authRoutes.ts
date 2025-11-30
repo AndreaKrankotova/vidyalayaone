@@ -17,9 +17,12 @@ import rateLimit from 'express-rate-limit';
 
 const router: Router = Router();
 
+// Disable rate limiting in development for profiling
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: isDevelopment ? 10000 : 100, // Much higher limit for development/profiling
   message: {
     success: false,
     error: { message: 'Too many requests, please try again later.' },
@@ -29,7 +32,7 @@ const authLimiter = rateLimit({
 
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: isDevelopment ? 10000 : 100, // Much higher limit for development/profiling
   message: {
     success: false,
     error: { message: 'Too many attempts, please try again later.' },
