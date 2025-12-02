@@ -11,6 +11,12 @@
 **Názov služby:** GitHub Actions  
 **Fázy vývoja:** Continuous Integration (CI) + Continuous Deployment (CD)
 
+**Čo to je:**  
+GitHub Actions je automatizačný nástroj zabudovaný priamo v GitHub-e. Umožňuje vytvárať automatické pracovné postupy (workflows), ktoré sa spúšťajú pri určitých udalostiach (napr. push kódu, vytvorenie pull requestu).
+
+**Na čo sa používa:**  
+Automatizuje proces od napísania kódu po nasadenie na produkciu. Ušetrí čas vývojárom — namiesto manuálneho buildovania a nasadzovania aplikácií GitHub Actions to spraví automaticky pri každom push-e do main vetvy.
+
 **Ako sa používa v projekte:**
 - **Build fáza:**
   - Checkout kódu z repository
@@ -49,13 +55,19 @@
 **Názov služby:** Docker  
 **Fázy vývoja:** Build, Containerization, Local Development, Production Deployment
 
+**Čo to je:**  
+Docker je nástroj, ktorý balí aplikáciu a všetky jej závislosti do "kontajnera" — ako prepravný kontajner na loď. Kontajner obsahuje všetko potrebné na beh aplikácie (kód, knižnice, nastavenia), takže funguje rovnako na každom počítači.
+
+**Na čo sa používa:**  
+Zaručuje, že aplikácia bude fungovať rovnako na lokálnom počítači vývojára, na testovacom serveri aj v produkcii. Odstraňuje problém "u mňa to funguje, ale na serveri nie". Uľahčuje nasadenie a škálovanie aplikácií.
+
 **Ako sa používa v projekte:**
 
 ### Development Dockerfile (`Dockerfile`)
 - **Účel:** Lokálny vývoj s hot-reload
 - **Base image:** `node:22.16.0-alpine`
 - **Proces:**
-  - Inštalácia pnpm cez corepack
+  - Inštalácia pnpm cez corepack (`pnpm@10.12.1`)
   - Copy root package files + packages + service kód
   - `pnpm install --frozen-lockfile`
   - Build shared packages: `pnpm build:packages`
@@ -65,6 +77,7 @@
 
 ### Production Dockerfile (`Dockerfile.prod`)
 - **Účel:** Optimalizovaný production build
+- **Base image:** `node:22-alpine`
 - **Multi-stage build:**
   1. **base stage:** Node.js + pnpm setup + non-root user (appuser)
   2. **deps stage:** Inštalácia všetkých dependencies
@@ -95,6 +108,12 @@
 
 **Názov služby:** Kubernetes (GKE)  
 **Fázy vývoja:** Container Orchestration, Deployment, Scaling, Service Discovery, Load Balancing
+
+**Čo to je:**  
+Kubernetes (skrátene K8s) je systém na správu Docker kontajnerov. Je to ako dirigent orchestra — riadi, kedy a kde sa kontajnery spúšťajú, automaticky ich reštartuje pri páde, distribuuje záťaž medzi viacero kópií aplikácie. GKE je verzia Kubernetes spravovaná Google Cloud.
+
+**Na čo sa používa:**  
+Automaticky spravuje veľké množstvo kontajnerov v produkcii. Ak aplikácia spadne, Kubernetes ju automaticky reštartuje. Ak je veľká záťaž, dokáže automaticky pridať viac kópií aplikácie. Zabezpečuje vysokú dostupnosť (aplikácia beží non-stop).
 
 **Ako sa používa v projekte:**
 
@@ -162,6 +181,12 @@ selector:
 **Názov služby:** Google Cloud Platform  
 **Fázy vývoja:** Cloud Infrastructure, Container Registry, Managed Services
 
+**Čo to je:**  
+GCP je cloudová platforma od Google — súbor služieb a nástrojov na hosting aplikácií, úložisko dát, servery a infraštruktúru. Je to ako prenájom výkonných počítačov a služieb od Google namiesto vlastných serverov.
+
+**Na čo sa používa:**  
+Hosting celého projektu v cloude (aplikácie bežia na Google serveroch). Poskytuje úložisko Docker obrazov (Artifact Registry), spravované Kubernetes klastre (GKE), databázy, load balancery a ďalšie služby. Platí sa len za to, čo sa používa.
+
 **Ako sa používa v projekte:**
 
 ### GCP Artifact Registry
@@ -194,372 +219,6 @@ selector:
 
 ---
 
-## 5. pnpm Workspaces
-
-**Názov služby:** pnpm Workspaces  
-**Fázy vývoja:** Dependency Management, Build Orchestration, Monorepo Management
-
-**Ako sa používa v projekte:**
-
-### Workspace štruktúra
-```yaml
-packages:
-  - apps/*
-  - packages/*
-```
-
-### Shared packages
-- `@vidyalayaone/common-middleware`
-- `@vidyalayaone/common-utils`
-- `@vidyalayaone/logger`
-
-**Workspace protocol:** `workspace:*` v dependencies
-
-### Build orchestration
-- **Build packages:** `pnpm run --recursive --filter "./packages/**" build`
-- **Build all:** `pnpm -r run build`
-- **Test all apps:** `pnpm --filter "./apps/*" run test`
-- **Start specific app:** `pnpm --filter @vidyalayaone/$APP dev`
-
-### Výhody v projekte
-- Zdieľané závislosti (disk space saving)
-- Konzistentné verzie naprieč workspace
-- Fast installs
-- Automatické linking medzi packages
-
-### Konfiguračné súbory
-- `pnpm-workspace.yaml`
-- `pnpm-lock.yaml` (lockfile pre reproducible builds)
-- `package.json` (root scripts)
-
----
-
-## 6. TypeScript
-
-**Názov služby:** TypeScript Compiler  
-**Fázy vývoja:** Build, Type Checking, Code Quality
-
-**Ako sa používa v projekte:**
-
-### Build process
-- **Transpilation:** TypeScript → JavaScript
-- **Command:** `tsc` (v každej službe)
-- **Output:** `dist/` directory
-
-### Shared konfigurácia
-- **Base config:** `tsconfig.base.json` (root)
-- **Extended configs:** Každá služba/package má vlastný `tsconfig.json`
-
-### Type checking
-- **Development:** Automaticky v IDE
-- **Build time:** `tsc --noEmit` pre type checking bez output
-- **Pre-build:** `rimraf dist` (cleanup)
-
-### Test konfigurácia
-- `tsconfig.test.json` pre Jest
-- Separate config pre test files
-
----
-
-## 7. Prisma ORM
-
-**Názov služby:** Prisma  
-**Fázy vývoja:** Database Management, Migrations, Code Generation, Seeding
-
-**Ako sa používa v projekte:**
-
-### Code Generation
-- **Command:** `pnpm db:generate` → `prisma generate`
-- **Output:** Prisma Client v `node_modules/@prisma/client`
-- **Timing:** 
-  - Development: Pri zmene schema
-  - Build: V Dockerfile pred compilation
-  - CI/CD: Part of build process
-
-### Database Migrations
-- **Development:** `pnpm db:migrate` → `prisma migrate dev`
-- **Production:** `prisma migrate deploy` (v deployment process)
-- **Reset:** `pnpm db:reset` → `prisma migrate reset`
-
-### Database Studio
-- **Command:** `pnpm db:studio` → `prisma studio --port 5556`
-- **Účel:** GUI pre database management
-- **Unique ports:** auth-service: 5556, profile-service: iný port
-
-### Seeding
-- **Command:** `pnpm db:seed`
-- **Script:** `ts-node-dev prisma/seed.ts`
-- **Účel:** Inicializácia testovacích/základných dát
-
-### V Docker build
-```dockerfile
-RUN pnpm db:generate  # Generuje Prisma Client
-COPY prisma ./prisma  # Copy schema + migrations
-COPY node_modules/prisma ./node_modules/prisma  # Runtime prisma
-```
-
-### Schema files
-- `apps/auth-service/prisma/schema.prisma`
-- `apps/profile-service/prisma/schema.prisma`
-- `apps/school-service/prisma/schema.prisma`
-- `apps/attendance-service/prisma/schema.prisma`
-- `apps/payment-service/prisma/schema.prisma`
-
----
-
-## 8. Jest
-
-**Názov služby:** Jest Testing Framework  
-**Fázy vývoja:** Testing (Unit & Integration), Coverage Reporting
-
-**Ako sa používa v projekte:**
-
-### Test execution
-- **Run tests:** `pnpm test` → `jest --passWithNoTests`
-- **Watch mode:** `pnpm test:watch` → `jest --watch`
-- **Coverage:** `pnpm test:coverage` → `jest --coverage`
-
-### Konfigurácia
-```typescript
-preset: 'ts-jest'
-testEnvironment: 'node'
-testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts']
-```
-
-### TypeScript integration
-- **Transformer:** `ts-jest`
-- **Config:** `tsconfig.test.json`
-- **Module extensions:** ts, js, json
-
-### Coverage
-- **Collect from:** `src/**/*.ts`
-- **Ignore:** `src/**/*.d.ts`, `/node_modules/`, `/dist/`
-- **Output:** `coverage/` directory
-
-### V CI/CD pipeline
-- Part of `pnpm --filter "./apps/*" run test` (root script)
-- Runs v GitHub Actions pri každom push
-
-### Konfiguračné súbory
-- `apps/auth-service/jest.config.ts`
-- `apps/profile-service/jest.config.ts`
-
----
-
-## 9. ESLint
-
-**Názov služby:** ESLint  
-**Fázy vývoja:** Code Quality, Linting, Static Analysis
-
-**Ako sa používa v projekte:**
-
-### Lint execution
-- **Lint:** `pnpm lint` → `eslint src/**/*.ts` alebo `eslint .`
-- **Auto-fix:** `pnpm lint:fix` → `eslint src/**/*.ts --fix`
-
-### TypeScript integration
-- **Parser:** `@typescript-eslint/parser`
-- **Plugin:** `@typescript-eslint/eslint-plugin`
-
-### React/Frontend specific
-- **Plugins:**
-  - `eslint-plugin-react-hooks`
-  - `eslint-plugin-react-refresh`
-
-### Konfiguračné súbory
-- Backend: `apps/auth-service/.eslintrc.js`
-- Frontend: `apps/platform-frontend/eslint.config.js`
-
-### V development workflow
-- IDE integration (real-time feedback)
-- Pre-commit checks (môže byť)
-- Part of code review process
-
----
-
-## 10. Prettier
-
-**Názov služby:** Prettier  
-**Fázy vývoja:** Code Formatting
-
-**Ako sa používa v projekte:**
-
-### Format execution
-- **Command:** `pnpm format` → `prettier --write src/**/*.ts`
-- **Účel:** Automatické formátovanie kódu
-
-### Výhody
-- Konzistentný code style v celom projekte
-- Eliminuje style debates v code reviews
-- Automatická integrácia s IDE
-
-### Konfiguračné súbory
-- `apps/auth-service/.prettierrc`
-
----
-
-## 11. Vite
-
-**Názov služby:** Vite  
-**Fázy vývoja:** Build Tool, Development Server (Frontend)
-
-**Ako sa používa v projekte:**
-
-### Development server
-- **Command:** `pnpm dev` → `vite`
-- **Port:** 8081 (platform-frontend), iný pre school-frontend
-- **Features:**
-  - Hot Module Replacement (HMR)
-  - Fast refresh
-  - Host: `::`  (IPv6)
-
-### Build process
-- **Production:** `pnpm build` → `vite build`
-- **Development build:** `pnpm build:dev` → `vite build --mode development`
-- **Output:** Optimalizovaný bundle
-
-### Plugins
-- **React:** `@vitejs/plugin-react-swc` (rýchla compilation)
-- **Component Tagger:** `lovable-tagger` (development only)
-
-### Path aliases
-```typescript
-resolve: {
-  alias: {
-    "@": path.resolve(__dirname, "./src"),
-  },
-}
-```
-
-### Preview
-- **Command:** `pnpm preview` → `vite preview`
-- **Účel:** Test production build lokálne
-
-### Konfiguračné súbory
-- `apps/platform-frontend/vite.config.ts`
-- `apps/school-frontend/vite.config.ts`
-
----
-
-## 12. Git & GitHub
-
-**Názov služby:** Git + GitHub  
-**Fázy vývoja:** Version Control, Code Collaboration, Issue Tracking
-
-**Ako sa používa v projekte:**
-
-### Repository
-- **Owner:** AndreaKrankotova
-- **Name:** vidyalayaone
-- **Current branch:** feat/profiling
-
-### Branch strategy
-- **Main branch:** `main` (production)
-- **Feature branches:** `feat/*`
-- **CI/CD trigger:** Push na `main`
-
-### Issue tracking
-- **Issue templates:** `.github/ISSUE_TEMPLATE/simple_issue_template.md`
-- **Purpose:** Štandardizované reportovanie bugov a feature requests
-
-### .gitignore
-**Vylúčené:**
-- `node_modules/`
-- `.env` súbory (okrem `.env.example`)
-- Build artifacts: `dist/`, `build/`, `.next/`
-- Coverage: `coverage/`, `.nyc_output/`
-- Logs: `*.log`
-- Prisma generated: `**/src/generated/`
-- Kubernetes secrets: `k8s-manifests/secrets/*`
-
-### Code collaboration
-- Pull requests
-- Code reviews
-- Branch protection (pravdepodobne na main)
-
----
-
-## 13. Autocannon
-
-**Názov služby:** Autocannon  
-**Fázy vývoja:** Performance Testing, Load Testing, Benchmarking
-
-**Ako sa používa v projekte:**
-
-### Benchmark execution
-- **Command:** `pnpm benchmark`
-- **Process:**
-  1. `pnpm build` (build production code)
-  2. `node dist/scripts/login-benchmark.js`
-
-### Použitie v auth-service
-- **Script:** `apps/auth-service/scripts/login-benchmark.ts`
-- **Účel:** Load testing login endpointu
-- **Metriky:** Requests/sec, latency, throughput
-
-### TypeScript support
-- **Types:** `@types/autocannon`
-- **Development:** TypeScript, Runtime: JavaScript
-
-### Performance monitoring
-- Identifikácia bottleneckov
-- Validácia optimalizácií
-- Regression testing
-
----
-
-## 14. Nginx
-
-**Názov služby:** Nginx  
-**Fázy vývoja:** Web Server, Reverse Proxy, Static File Serving (Production)
-
-**Ako sa používa v projekte:**
-
-### V production Docker images (Frontend)
-- **Účel:** Serving built React aplikácií
-- **Process:**
-  1. Build stage: Vite build → `dist/` directory
-  2. Production stage: 
-     - Base: `nginx:alpine`
-     - Copy: `dist/` → `/usr/share/nginx/html`
-     - Config: Custom nginx config
-
-### Konfigurácia
-- **SPA routing:** Redirect all requests → `index.html`
-- **Static files:** Efficient serving
-- **Gzip:** Compression (pravdepodobne)
-
-### Konfiguračné súbory
-- `apps/platform-frontend/nginx.default.conf`
-- `apps/school-frontend/nginx.default.conf`
-
-### Production deployment
-- Nginx beží v frontend containers v Kubernetes
-- Port 80 exposed
-- Ingress → Nginx → Static files
-
----
-
-## 15. Rimraf
-
-**Názov služby:** Rimraf  
-**Fázy vývoja:** Build Cleanup
-
-**Ako sa používa v projekte:**
-
-### Pre-build cleanup
-- **Command:** `pnpm prebuild` → `rimraf dist`
-- **Hook:** Runs automatically pred `pnpm build`
-- **Účel:** 
-  - Odstránenie starých build artifacts
-  - Clean build environment
-  - Zabránenie konfliktom starých/nových súborov
-
-### Cross-platform
-- Funguje na Windows, Linux, macOS
-- Alternative k `rm -rf` (Unix) / `rmdir /s` (Windows)
-
----
 
 ## Súhrn DevOps Pipeline
 
@@ -581,91 +240,76 @@ resolve: {
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │  BUILD STAGE                                                    │
-│  • Docker build (multi-stage Dockerfile.prod)                  │
+│  • Docker build (multi-stage Dockerfile.prod)                   │
 │    - pnpm install (deps)                                        │
-│    - pnpm build:packages (shared packages)                     │
-│    - prisma generate (DB client)                               │
-│    - tsc (TypeScript → JavaScript)                             │
-│    - pnpm deploy --prod (prune deps)                           │
-│  • Docker tag for registry                                     │
+│    - pnpm build:packages (shared packages)                      │
+│    - prisma generate (DB client)                                │
+│    - tsc (TypeScript → JavaScript)                              │
+│    - pnpm deploy --prod (prune deps)                            │
+│  • Docker tag for registry                                      │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │  REGISTRY STAGE                                                 │
-│  • Push to GCP Artifact Registry                               │
-│    asia-south2-docker.pkg.dev/vidyalayaone/...                │
+│  • Push to GCP Artifact Registry                                │
+│    asia-south2-docker.pkg.dev/vidyalayaone/...                  │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │  DEPLOYMENT STAGE                                               │
-│  • Install kubectl + gke-gcloud-auth-plugin                    │
-│  • Get GKE cluster credentials                                 │
-│  • kubectl rollout restart deployment                          │
-│    (vidyalayaone-cluster / vidyalayaone-prod namespace)       │
+│  • Install kubectl + gke-gcloud-auth-plugin                     │
+│  • Get GKE cluster credentials                                  │
+│  • kubectl rollout restart deployment                           │
+│    (vidyalayaone-cluster / vidyalayaone-prod namespace)         │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │  KUBERNETES ORCHESTRATION                                       │
-│  • Pull new image from Artifact Registry                       │
-│  • Rolling update (2 replicas)                                 │
-│  • Health checks (readiness + liveness probes)                │
-│  • ConfigMaps & Secrets injection                              │
-│  • Service discovery (ClusterIP)                               │
+│  • Pull new image from Artifact Registry                        │
+│  • Rolling update (2 replicas)                                  │
+│  • Health checks (readiness + liveness probes)                  │
+│  • ConfigMaps & Secrets injection                               │
+│  • Service discovery (ClusterIP)                                │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │  INGRESS & LOAD BALANCING                                       │
-│  • Google Cloud Load Balancer (GCE Ingress)                    │
-│  • TLS termination (vidyalayaone.com + subdomains)            │
+│  • Google Cloud Load Balancer (GCE Ingress)                     │
+│  • TLS termination (vidyalayaone.com + subdomains)              │
 │  • Routing:                                                     │
-│    - / → Frontend services                                     │
-│    - /api/ → API Gateway                                       │
+│    - / → Frontend services (platform/school)                    │
+│    - /api/ → API Gateway                                        │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │  PRODUCTION (vidyalayaone.com)                                  │
-│  ✓ High availability (replicas)                                │
-│  ✓ Auto-scaling                                                 │
-│  ✓ Health monitoring                                            │
-│  ✓ HTTPS enabled                                                │
+│  ✓ High availability (replicas: 2)                              │
+│  ✓ Auto-healing (Kubernetes restarts)                           │
+│  ✓ Health monitoring (liveness + readiness probes)              │
+│  ✓ HTTPS enabled (TLS certificates)                             │
+│  ✓ Zero-downtime deployment (rolling updates)                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Kontinuálne procesy
-
-### Monitoring & Logging
-- **Kubernetes health probes:** Automatická detekcia nefunkčných podov
-- **Application logs:** Morgan HTTP logging, custom logger package
-- **Error tracking:** Log files (`auth.log`, `profile.log`)
-
-### Testing Strategy
-- **Unit tests:** Jest (pri každom push)
-- **Integration tests:** Jest
-- **Load tests:** Autocannon benchmarks
-- **Manual testing:** Prisma Studio pre DB inspection
-
-### Code Quality Gates
-1. **Pre-commit:** ESLint, Prettier (IDE level)
-2. **CI/CD:** Tests (pass/fail)
-3. **Code review:** GitHub Pull Requests
-4. **Type safety:** TypeScript compilation
-
----
-
 ## Záver
 
-Projekt VidyalayaOne má kompletnú DevOps infraštruktúru pokrývajúcu všetky fázy vývoja:
+Projekt VidyalayaOne má DevOps infraštruktúru postavenú na moderných cloudových technológiách:
 
-- ✅ **Version Control:** Git + GitHub
-- ✅ **CI/CD:** GitHub Actions
-- ✅ **Build:** Docker, TypeScript, Vite, pnpm
-- ✅ **Test:** Jest, Autocannon
-- ✅ **Quality:** ESLint, Prettier
-- ✅ **Deploy:** Kubernetes (GKE), GCP Artifact Registry
-- ✅ **Infrastructure:** Google Cloud Platform
-- ✅ **Database:** Prisma migrations & code generation
-- ✅ **Monitoring:** Health checks, logging
+### **Hlavné DevOps nástroje:**
+-  **CI/CD:** GitHub Actions — plne automatizovaný deployment pipeline
+-  **Containerizácia:** Docker — multi-stage builds, security best practices
+-  **Orchestrácia:** Kubernetes (GKE) — high availability, auto-healing, scaling
+-  **Cloud Infrastructure:** Google Cloud Platform — Artifact Registry, GKE, Load Balancing
 
-Pipeline je plne automatizovaný od git push až po produkčné nasadenie s rolling updates a zero-downtime deployment.
+### **Vlastnosti pipeline:**
+- **Automatizovaný:** Push na main → automatický deployment do produkcie
+- **Bezpečný:** Non-root kontajnery, secrets management, TLS encryption
+- **Škálovateľný:** Kubernetes auto-scaling, load balancing
+- **Spoľahlivý:** Health checks, rolling updates, zero-downtime deployment
+- **Optimalizovaný:** Multi-stage builds, image layer caching, production-only dependencies
+
+
+Pipeline je production-ready a pokrýva všetky základné DevOps praktiky moderného cloud-native projektu.
+
