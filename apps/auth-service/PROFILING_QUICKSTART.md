@@ -54,7 +54,7 @@ pnpm dev
 
 Počkaj kým uvidíš:
 ```
-🚀 Auth service running on port 3001
+ Auth service running on port 3001
 ```
 
 ---
@@ -79,13 +79,15 @@ pnpm load:login
 ```powershell
 pnpm build
 node dist/scripts/login-benchmark.js
+alebo 
+pnpm benchmark
 ```
 
 **Zaznamenaj si:**
 - Average, p50, p95, p99 latency
 - Throughput
 
-### 5b. Detailné meranie (console.time)
+### 5b. Detailné meranie login req
 
 **Manuálny test:**
 ```powershell
@@ -104,12 +106,6 @@ Alebo použi Postman/Thunder Client.
 ⏱️   TOTAL login time: XXX.XXX ms
 ```
 
-**Zapíš si:**
-- bcrypt.compare čas: _____ ms
-- TOTAL login time: _____ ms
-- Percento: bcrypt / total * 100 = _____ %
-
-**Zapíš výsledky do `docs/PROFILING.md` sekcie "Baseline meranie"**
 
 ---
 
@@ -162,39 +158,15 @@ Invoke-RestMethod -Uri "http://localhost:3001/api/v1/auth/login" -Method POST -H
 
 Porovnaj bcrypt čas s predšlým meraním.
 
-**Zapíš výsledky do `docs/PROFILING.md` sekcie "Meranie po optimalizácii"**
 
----
-
-## 📊 8. POROVNANIE
-
-Vyplň tabuľku v `docs/PROFILING.md`:
-
-```markdown
-| Metrika                | Pred (12 rounds) | Po (10 rounds) | Zmena (%) |
-|------------------------|------------------|----------------|-----------|
-| p50 latency (ms)       | 511.62           | 142.92         | -72.1%    |
-| p95 latency (ms)       | 758.47           | 209.30         | -72.4%    |
-| p99 latency (ms)       | 789.63           | 224.82         | -71.5%    |
-| Throughput (req/s)     | 13.18            | 47.89          | +263.4%   |
-| Bcrypt time (ms)       | ~450             | ~120           | -73.3%    |
-```
-
----
-
-## ✅ 9. ZÁVER
+## ✅ 8. ZÁVER
 
 ### Splnené kritériá:
 
-- ✅ **Bottleneck identifikovaný**: `bcrypt.compare` (~60% času operácie)
-- ✅ **Meranie pred/po**: Detailné metriky v docs/PROFILING.md
-- ✅ **Zlepšenie**: ~20-40% zníženie latencií, ~20-30% zvýšenie throughputu
+-  **Bottleneck identifikovaný**: `bcrypt.compare` (~60% času operácie)
+-  **Meranie pred/po**
+-  **Zlepšenie**:  zníženie latencií, zvýšenie throughputu
 
-### Finálne súbory:
-
-1. `docs/PROFILING.md` - Komplexná dokumentácia
-2. `src/controllers/login.ts` - Login controller s console.time() measurements
-3. `.env` - BCRYPT_SALT_ROUNDS konfigurácia
 
 ---
 
@@ -208,7 +180,7 @@ pnpm db:studio
 
 ### Test user už existuje
 ```
-✅ Test user 'profiling_test_user' already exists
+ Test user 'profiling_test_user' already exists
 ```
 To je OK! Môžeš pokračovať s testami.
 
@@ -242,6 +214,3 @@ pnpm seed:test-user
 
 ---
 
-**Hodně štěstí! 🍀**
-
-Ak máš otázky, pozri sa do `docs/PROFILING.md` pre detailnú dokumentáciu.

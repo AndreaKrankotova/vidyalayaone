@@ -4,18 +4,6 @@
 > **Dátum:** November 2025  
 > **Autor:** Andrea Krankotova
 
-## 📋 Obsah
-
-1. [Úvod](#úvod)
-2. [Metodológia](#metodológia)
-3. [Testovací scenár](#testovací-scenár)
-4. [Baseline meranie (pred optimalizáciou)](#baseline-meranie-pred-optimalizáciou)
-5. [Identifikácia bottlenecku](#identifikácia-bottlenecku)
-6. [Implementovaná optimalizácia](#implementovaná-optimalizácia)
-7. [Meranie po optimalizácii](#meranie-po-optimalizácii)
-8. [Porovnanie výsledkov](#porovnanie-výsledkov)
-9. [Záver](#záver)
-
 ---
 
 ## Úvod
@@ -165,89 +153,13 @@ Menej rounds = menej iterácií = kratší čas = slabšia ochrana (ale stále b
 - **NODE_ENV**: `development`
 - **Database**: PostgreSQL 15 (lokálny Docker)
 
-### Výsledky - Load test (autocannon)
-
-```
-[VYPLŇTE PO SPUSTENÍ TESTU]
-
-Duration: _____ s
-Total requests: _____
-Throughput: _____ req/s
-
-Latency:
-  Average: _____ ms
-  p50: _____ ms
-  p95: _____ ms
-  p99: _____ ms
-  Max: _____ ms
-
-Errors: _____
-```
-
-### Výsledky - Benchmark script
-
-```
-Successful requests: 500 / 500
-Average latency: 468.77 ms
-p50 latency: 511.62 ms
-p95 latency: 758.47 ms
-p99 latency: 789.63 ms
-Throughput: 13.18 req/s
-```
-
-### Detailné meranie operácií (console.time)
-
-Počas manuálneho testu (1 request):
-
-```
-[VYPLŇTE PO VYKONANÍ CURL/POSTMAN REQUESTU]
-
-1️⃣ Validation: _____ ms
-2️⃣ Fetch user from DB: _____ ms
-3️⃣ Fetch role from DB: _____ ms
-4️⃣ bcrypt.compare: _____ ms (_____ % z celkového času)
-5️⃣ Generate JWT tokens: _____ ms
-⏱️  TOTAL login time: _____ ms
-```
-
-**Percentuálny podiel bcrypt:**
-- bcrypt.compare zaberá **_____ %** z celkového času login operácie
-- To potvrdzuje že bcrypt je hlavný bottleneck
-
----
-
-## Identifikácia bottlenecku
-
-### Analýza časových meraní
-
-**Primárny bottleneck:**
-
-```
-[VYPLŇTE NA ZÁKLADE CONSOLE.TIME() VÝSTUPOV]
-
-Funkcia: bcrypt.compare()
-Podiel času: _____% z celkového času
-Priemerné trvanie: _____ ms (z load testu)
-Počet volaní: 1x na každý login request
-
-Dôvod: Bcrypt s 12 salt rounds je výpočtovo náročná operácia
-(2^12 = 4096 iterácií hashovacej funkcie).
-```
-
-**Sekundárne bottlenecky:**
-
-```
-1. Prisma queries: _____ ms celkovo (_____ queries na request)
-2. JWT token generation: _____ ms
-3. JSON validation: _____ ms
-```
 
 ### Odôvodnenie výberu bcrypt ako bottleneck
 
-- ✅ Zaberá **> 50%** celkového CPU času
-- ✅ Blokujúca operácia (synchronous čakanie)
-- ✅ Vykonáva sa pri **každom login requeste**
-- ✅ Merateľný dopad na latency
+-  Zaberá **> 50%** celkového CPU času
+-  Blokujúca operácia (synchronous čakanie)
+-  Vykonáva sa pri **každom login requeste**
+-  Merateľný dopad na latency
 
 ---
 
@@ -257,17 +169,8 @@ Dôvod: Bcrypt s 12 salt rounds je výpočtovo náročná operácia
 
 **Súbor:** `apps/auth-service/src/config/config.ts`
 
-**Pôvodný kód (riadok 82):**
-```typescript
-bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10),
-```
 
-**Nový kód:**
-```typescript
-bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10),
-```
-
-**Alternatívne cez .env:**
+** cez .env:**
 ```bash
 BCRYPT_SALT_ROUNDS=10
 ```
@@ -279,106 +182,12 @@ BCRYPT_SALT_ROUNDS=10
 - **Komproms**: Výrazné zlepšenie výkonu pri zachovaní dostatočnej bezpečnosti
 - **Vhodné pre**: Development, staging, low-risk aplikácie
 
----
-
-## Meranie po optimalizácii
-
-### Konfigurácia
-
-- **BCRYPT_SALT_ROUNDS**: `10` ← **ZMENENÉ**
-- **NODE_ENV**: `development`
-- **Database**: PostgreSQL 15 (lokálny Docker)
-
-### Výsledky - Load test (autocannon)
-
-```
-[VYPLŇTE PO SPUSTENÍ TESTU S NOVÝM NASTAVENÍM]
-
-Duration: _____ s
-Total requests: _____
-Throughput: _____ req/s (+/- ____% change)
-
-Latency:
-  Average: _____ ms (+/- ____ ms)
-  p50: _____ ms (+/- ____ ms)
-  p95: _____ ms (+/- ____ ms)
-  p99: _____ ms (+/- ____ ms)
-  Max: _____ ms
-
-Errors: _____
-```
-
-### Výsledky - Benchmark script
-
-```
-Successful requests: 500 / 500
-Average latency: 136.06 ms (-332.71 ms)
-p50 latency: 142.92 ms (-368.70 ms)
-p95 latency: 209.30 ms (-549.17 ms)
-p99 latency: 224.82 ms (-564.81 ms)
-Throughput: 47.89 req/s (+263.4%)
-```
-
-### Detailné meranie operácií (console.time)
-
-Počas manuálneho testu (1 request):
-
-```
-[VYPLŇTE PO VYKONANÍ CURL/POSTMAN REQUESTU]
-
-1️⃣ Validation: _____ ms
-2️⃣ Fetch user from DB: _____ ms
-3️⃣ Fetch role from DB: _____ ms
-4️⃣ bcrypt.compare: _____ ms (_____ % z celkového času) [BOLO: _____ ms]
-5️⃣ Generate JWT tokens: _____ ms
-⏱️  TOTAL login time: _____ ms [BOLO: _____ ms]
-```
-
-**Porovnanie bcrypt času:**
-- PRED: bcrypt.compare _____ ms (_____ % z celku)
-- PO: bcrypt.compare _____ ms (_____ % z celku)
-- ZLEPŠENIE: _____ ms (_____ %)
-
----
-
-## Porovnanie výsledkov
-
-### Tabuľka metrik
-
-| Metrika                | Pred (12 rounds) | Po (10 rounds) | Zmena (abs) | Zmena (%) |
-|------------------------|------------------|----------------|-------------|-----------||
-| **p50 latency (ms)**   | 511.62           | 142.92         | -368.70     | -72.1%    |
-| **p95 latency (ms)**   | 758.47           | 209.30         | -549.17     | -72.4%    |
-| **p99 latency (ms)**   | 789.63           | 224.82         | -564.81     | -71.5%    |
-| **Avg latency (ms)**   | 468.77           | 136.06         | -332.71     | -71.0%    |
-| **Throughput (req/s)** | 13.18            | 47.89          | +34.71      | +263.4%   |
-| **Bcrypt time (ms)**   | ~450             | ~120           | -330        | -73.3%    |
-| **Bcrypt % času**      | ~96%             | ~88%           | -8          | -8 p.p.   |
-
-
----
-
-## Záver
-
-### Dosiahnuté výsledky
-
-**Bodové hodnotenie úlohy:**
-
-| Kritérium | Body | Splnenie |
-|-----------|------|----------|
-| ✅ Nájdenie bottlenecku | 2/2 | `bcrypt.compare` identifikovaný ako hlavný bottleneck |
-| ✅ Meranie pred/po | 2/2 | Detailné metriky (latency, throughput, bcrypt time) |
-| ✅ Zlepšenie metriky | 3/3 | p95 latency znížená o ~___%, throughput zvýšený o ~___% |
-| **SPOLU** | **7/7** | 🏆 |
+-
 
 ### Zhrnutie optimalizácie
 
 1. **Bottleneck**: `bcrypt.compare()` so salt rounds 12 zaberal ~60%+ času celej operácie
 2. **Riešenie**: Zníženie na 10 salt rounds
-3. **Dopad**: 
-   - Zníženie latencií o **71-72%** (p50/p95/p99)
-   - Zvýšenie throughputu o **263%** (13.18 → 47.89 req/s)
-   - Zníženie času v bcrypt o **73%** (~450ms → ~120ms)
 
 ### Bezpečnostné úvahy
 
@@ -416,7 +225,6 @@ pnpm --filter @vidyalayaone/auth-service benchmark
 ### Konfigurácia
 
 - `.env` – Environment variables (BCRYPT_SALT_ROUNDS)
-- `src/config/config.ts` – Application config
 - `src/controllers/login.ts` – Login controller s console.time() measurements
 
 
